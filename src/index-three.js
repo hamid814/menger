@@ -3,6 +3,9 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
 document.body.appendChild(renderer.domElement);
 
+const stats = new Stats();
+document.body.appendChild(stats.dom);
+
 const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
@@ -32,7 +35,7 @@ scene.add(light3);
 
 const center = new V(0, 0, 0);
 
-const menger = new Menger(2, 1, center);
+const menger = new Menger(3, 1, center);
 
 // 31019008
 // 1802240
@@ -45,80 +48,100 @@ const positions = menger.getPositions();
 
 console.log('cubes Count:', positions.length);
 
-// const cubeGeo = new THREE.BoxGeometry();
 const cubeGeo = new THREE.BoxBufferGeometry();
-// const cubeMat = new THREE.MeshNormalMaterial();
-const cubeMat = new THREE.MeshStandardMaterial({
+const cubeMat = new THREE.MeshNormalMaterial();
+const cubeMatStandard = new THREE.MeshStandardMaterial({
   roughness: 0.6,
   metalness: 0.4,
-  wireframe: true,
+  // wireframe: true,
 });
 
-const bufferGeo = new THREE.BufferGeometry();
-const bufferArray = new Float32Array(positions.length * 72);
-const normalBufferArray = new Float32Array(positions.length * 72);
-const indexBufferArray = new Uint16Array(positions.length * 36);
-const bufferAttribute = new THREE.BufferAttribute(bufferArray, 3);
-const normalBufferAttribute = new THREE.BufferAttribute(normalBufferArray, 3);
-const indexBufferAttribute = new THREE.BufferAttribute(indexBufferArray, 1);
+function createUsignBuffer() {
+  const bufferGeo = new THREE.BufferGeometry();
+  const bufferArray = new Float32Array(positions.length * 72);
+  const normalBufferArray = new Float32Array(positions.length * 72);
+  const indexBufferArray = new Uint16Array(positions.length * 36);
+  const bufferAttribute = new THREE.BufferAttribute(bufferArray, 3);
+  const normalBufferAttribute = new THREE.BufferAttribute(normalBufferArray, 3);
+  const indexBufferAttribute = new THREE.BufferAttribute(indexBufferArray, 1);
 
-num = 0;
+  console.log(positions.length * 72);
 
-// positions.forEach((pos, i) => {
-for (let i = 0; i < positions.length; i++) {
   const cube = new THREE.Mesh(cubeGeo, cubeMat);
-  const pos = positions[i];
-  cube.position.set(pos.x, pos.y, pos.z);
 
-  const cubePositionAttr = cube.geometry.attributes.position;
-  const cubeNormalAttr = cube.geometry.attributes.normal;
-  const cubeIndex = cube.geometry.index;
-  num++;
+  let num = 0;
 
-  for (let j = 0; j < cubePositionAttr.count; j++) {
-    const j3 = j * 3;
+  for (let i = 0; i < positions.length; i++) {
+    const pos = positions[i];
+    cube.position.set(pos.x, pos.y, pos.z);
 
-    const x = cubePositionAttr.array[j3] + pos.x;
-    const y = cubePositionAttr.array[j3 + 1] + pos.y;
-    const z = cubePositionAttr.array[j3 + 2] + pos.z;
+    const cubePositionAttr = cube.geometry.attributes.position;
+    const cubeNormalAttr = cube.geometry.attributes.normal;
+    const cubeIndex = cube.geometry.index;
 
-    const nx = cubeNormalAttr.array[j3];
-    const ny = cubeNormalAttr.array[j3 + 1];
-    const nz = cubeNormalAttr.array[j3 + 2];
+    for (let j = 0; j < cubePositionAttr.count; j++) {
+      const j3 = j * 3;
+      num += 3;
 
-    bufferAttribute.setXYZ(j + i * 24, x, y, z);
-    normalBufferAttribute.setXYZ(j + i * 24, nx, ny, nz);
+      const x = cubePositionAttr.array[j3] + pos.x;
+      const y = cubePositionAttr.array[j3 + 1] + pos.y;
+      const z = cubePositionAttr.array[j3 + 2] + pos.z;
+
+      const nx = cubeNormalAttr.array[j3];
+      const ny = cubeNormalAttr.array[j3 + 1];
+      const nz = cubeNormalAttr.array[j3 + 2];
+
+      bufferAttribute.setXYZ(j + i * 24, x, y, z);
+      normalBufferAttribute.setXYZ(j + i * 24, nx, ny, nz);
+    }
+
+    for (let j = 0; j < cubeIndex.count; j++) {
+      const x = cubeIndex.array[j];
+
+      indexBufferAttribute.setX(j + i * 36, x + i * 24);
+    }
   }
 
-  for (let j = 0; j < cubeIndex.count; j++) {
-    const x = cubeIndex.array[j];
+  console.log(num);
 
-    indexBufferAttribute.setX(j + i * 36, x + i * 24);
-  }
+  bufferGeo.setAttribute('position', bufferAttribute);
+  bufferGeo.setAttribute('normal', normalBufferAttribute);
+  bufferGeo.setIndex(indexBufferAttribute);
+
+  console.log(bufferGeo);
+
+  const mesh = new THREE.Mesh(bufferGeo, cubeMat);
+
+  scene.add(mesh);
 }
 
-console.log(num);
+function createStandard() {
+  positions.forEach((pos) => {
+    const cube = new THREE.Mesh(cubeGeo, cubeMat);
 
-bufferGeo.setAttribute('position', bufferAttribute);
-bufferGeo.setAttribute('normal', normalBufferAttribute);
-bufferGeo.setIndex(indexBufferAttribute);
+    cube.position.set(pos.x, pos.y, pos.z);
 
-console.log(bufferGeo);
-
-const mesh = new THREE.Mesh(
-  bufferGeo,
-  new THREE.MeshNormalMaterial({ side: 2 })
-);
-
-scene.add(mesh);
-
-positions.forEach();
+    scene.add(cube);
+  });
+}
 
 function render() {
   renderer.render(scene, camera);
 
+  stats.update();
+
   requestAnimationFrame(render);
 }
-render();
 
-console.log('render calls:', renderer.info.render.calls);
+async function startApp() {
+  await createUsignBuffer();
+  // await createStandard();
+
+  render();
+
+  setInterval(() => {
+    console.log('render calls:', renderer.info.render.calls);
+  }, 1000);
+}
+
+startApp();
