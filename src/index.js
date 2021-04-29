@@ -84,53 +84,56 @@ const getEdgeDirection = (type, index, edgeDirection) => {
   }
 };
 
-const isCube = (v, width, log) => {
+const isCube = (v, width) => {
   /**
-   * input:
-   * v: type: class V
-   * width: width of the menger, a power of 3
+   * inputs:
+   * v: class V, coord of the Cube
+   * width: number
    *
    * outputs:
-   * 1: means there is a cube at position
-   * 0: means there is not a cube at position
-   * 2: position is out of menger
+   * 0: not a cube
+   * 1: a cube
+   * 2: outside of the menger
    */
 
-  function getLinear(n, w) {
-    let currentWidth = w || width;
-    const mod = n % currentWidth;
+  function isCenterLinear(x, w) {
+    // const aw = w / 3;
+    // const ax = Math.ceil(x / aw);
+    // return (ax - 1) % 2 === 1;
 
-    if (mod > currentWidth / 3 && mod <= currentWidth - currentWidth / 3) {
-      return 1;
-    } else if (currentWidth !== 3) {
-      return getLinear(n, currentWidth / 3);
+    // above is same as below
+
+    return (Math.ceil(x / (w / 3)) - 1) % 2 === 1;
+  }
+
+  function isCenterSquare(x, y, width) {
+    return isCenterLinear(x, width) && isCenterLinear(y, width);
+  }
+
+  function isCenter(w) {
+    if (isCenterSquare(v.x, v.y, w)) return 0;
+    if (isCenterSquare(v.y, v.z, w)) return 0;
+    if (isCenterSquare(v.z, v.x, w)) return 0;
+
+    if (w !== 3) {
+      return isCenter(w / 3);
     } else {
-      return 0;
+      return 1;
     }
   }
 
   if (
-    v.x > this.width ||
-    v.x <= 0 ||
-    v.y > this.width ||
-    v.y <= 0 ||
-    v.z > this.width ||
-    v.z <= 0
+    v.x > width ||
+    v.x < 1 ||
+    v.y > width ||
+    v.y < 1 ||
+    v.z > width ||
+    v.z < 1
   ) {
     return 2;
   }
 
-  const x = getLinear(v.x);
-  const y = getLinear(v.y);
-  const z = getLinear(v.z);
-
-  log && console.log(x, y, z);
-
-  if (x + y + z >= 3) {
-    return 1;
-  } else {
-    return 0;
-  }
+  return isCenter(width);
 };
 
 class Menger {
@@ -142,10 +145,11 @@ class Menger {
     isEdge = undefined,
     direction = undefined
   ) {
+    this.sth = cubeSize;
     this.level = level;
+    this.cubeSize = 1;
     this.position = position || new V(0, 0, 0);
-    this.cubeSize = cubeSize;
-    this.width = cubeSize * Math.pow(3, level);
+    this.width = 1 * Math.pow(3, level);
     this.children = [];
     this.childSize = this.width / 3;
     this.childrenType = null;
@@ -170,58 +174,112 @@ class Menger {
     this.initChildren();
   }
 
-  isNeighbour(v, log) {
-    if (log) {
-      console.log(v);
-    }
-
+  isNeighbour(v) {
     /**
-     * input:
-     * v: type: class V
+     * inputs:
+     * v: class V, coord of the Cube
+     * width: number
      *
      * outputs:
-     * 1: means there is a cube at position
-     * 0: means there is not a cube at position
-     * 2: position is out of menger
+     * 0: a cube
+     * 1: not a cube
+     * 2: outside of the menger
      */
 
-    // const width = 3;
-    // this.width = width;
-    const width = this.level * 3;
+    const width = Math.pow(3, this.level);
 
-    function getLinear(n, w) {
-      let currentWidth = w || width;
-      const mod = n % currentWidth;
+    function isCenterLinear(x, w) {
+      // const aw = w / 3;
+      // const ax = Math.ceil(x / aw);
+      // return (ax - 1) % 2 === 1;
 
-      if (mod > currentWidth / 3 && mod <= currentWidth - currentWidth / 3) {
-        return 1;
-      } else if (currentWidth !== 3) {
-        return getLinear(n, currentWidth / 3);
+      // above is same as below
+
+      return (Math.ceil(x / (w / 3)) - 1) % 2 === 1;
+    }
+
+    function isCenterSquare(x, y, width) {
+      return isCenterLinear(x, width) && isCenterLinear(y, width);
+    }
+
+    function isCenter(w) {
+      if (isCenterSquare(v.x, v.y, w)) return 1;
+      if (isCenterSquare(v.y, v.z, w)) return 1;
+      if (isCenterSquare(v.z, v.x, w)) return 1;
+
+      if (w !== 3) {
+        return isCenter(w / 3);
       } else {
         return 0;
       }
     }
 
     if (
-      v.x > this.width ||
-      v.x <= 0 ||
-      v.y > this.width ||
-      v.y <= 0 ||
-      v.z > this.width ||
-      v.z <= 0
+      v.x > width ||
+      v.x < 1 ||
+      v.y > width ||
+      v.y < 1 ||
+      v.z > width ||
+      v.z < 1
     ) {
       return 2;
     }
 
-    const x = getLinear(v.x);
-    const y = getLinear(v.y);
-    const z = getLinear(v.z);
+    const res = isCenter(width);
 
-    if (x + y + z >= 2) {
-      return 1;
-    } else {
-      return 0;
+    return res;
+  }
+
+  static isCube(v, width) {
+    /**
+     * inputs:
+     * v: class V, coord of the Cube
+     * width: number
+     *
+     * outputs:
+     * 0: not a cube
+     * 1: a cube
+     * 2: outside of the menger
+     */
+
+    function isCenterLinear(x, w) {
+      // const aw = w / 3;
+      // const ax = Math.ceil(x / aw);
+      // return (ax - 1) % 2 === 1;
+
+      // above is same as below
+
+      return (Math.ceil(x / (w / 3)) - 1) % 2 === 1;
     }
+
+    function isCenterSquare(x, y, width) {
+      return isCenterLinear(x, width) && isCenterLinear(y, width);
+    }
+
+    function isCenter(w) {
+      if (isCenterSquare(v.x, v.y, w)) return 0;
+      if (isCenterSquare(v.y, v.z, w)) return 0;
+      if (isCenterSquare(v.z, v.x, w)) return 0;
+
+      if (w !== 3) {
+        return isCenter(w / 3);
+      } else {
+        return 1;
+      }
+    }
+
+    if (
+      v.x > width ||
+      v.x < 1 ||
+      v.y > width ||
+      v.y < 1 ||
+      v.z > width ||
+      v.z < 1
+    ) {
+      return 2;
+    }
+
+    return isCenter(width);
   }
 
   initChildren() {
@@ -265,7 +323,7 @@ class Menger {
       positions[19] = new V(xM, yM, zM);
 
       if (this.childrenType === 'cube') {
-        positions.forEach((pos, posId) => {
+        positions.forEach((pos, posIndex) => {
           const faces = [];
 
           for (let i = 0; i < facesIds.length; i++) {
@@ -277,14 +335,8 @@ class Menger {
             neighbourPos.y += facePos.y;
             neighbourPos.z += facePos.z;
 
-            const log = posId === 2;
-
-            log && console.error(1);
-            log && console.log(pos);
-
-            if (this.isNeighbour(neighbourPos, log)) {
+            if (this.isNeighbour(neighbourPos)) {
               faces.push(face.id);
-              log && console.log(face.id);
             }
           }
 
@@ -426,7 +478,7 @@ class Menger {
       }
       if (!this.isEdge) {
         if (this.childrenType === 'cube') {
-          positions.forEach((pos, posId) => {
+          positions.forEach((pos) => {
             const faces = [];
 
             for (let i = 0; i < facesIds.length; i++) {
@@ -536,8 +588,11 @@ class Menger {
           ? this.mother.centerToPosition
           : this.centerToPosition;
 
-        // const position = cube.position.retadd(centerToPosition);
-        const position = cube.position;
+        const position = cube.position.retadd(centerToPosition);
+        const sth = this.mother ? this.mother.sth : this.sth;
+        position.x *= sth;
+        position.y *= sth;
+        position.z *= sth;
 
         list.push({
           position,
